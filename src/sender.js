@@ -1,7 +1,7 @@
 import amqp from "amqplib";
 
 import { RABBITMQ_CONFIG } from "./common/config.js";
-import { SAMPLE_MESSAGE } from "./common/sampleMessage.js";
+import { SAMPLE_MESSAGE } from "./common/message.js";
 
 /**
  * Validates the message structure
@@ -41,10 +41,7 @@ const sendMessage = async (message) => {
 
         // Assert queue and send message
         await channel.assertQueue(RABBITMQ_CONFIG.queue, RABBITMQ_CONFIG.options);
-        channel.sendToQueue(
-            RABBITMQ_CONFIG.queue, 
-            Buffer.from(JSON.stringify(message))
-        );
+        channel.sendToQueue(RABBITMQ_CONFIG.queue, Buffer.from(JSON.stringify(message)));
 
         console.log("[x] Message sent successfully:", message);
         await channel.close();
