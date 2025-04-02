@@ -1,13 +1,13 @@
-import amqp from "amqplib";
-
-import { RABBITMQ_CONFIG } from "./common/config.js";
-
 /**
  * Validates the received message structure
  * @param {Object} message - Message to validate
  * @returns {boolean} - True if valid, throws error if invalid
  * @throws {Error} If message structure is invalid
  */
+
+import pkg from 'rascal';
+const { BrokerAsPromised } = pkg;
+import { BROKER_CONFIG } from "./common/config.js";
 
 const validateMessage = (message) => {
     if (!message || typeof message !== 'object') {
@@ -23,74 +23,77 @@ const validateMessage = (message) => {
 };
 
 /**
- * Processes a received message
- * @param {amqp.ConsumeMessage | null} message - The received message
- */
-
-const processMessage = (message) => {
-    if (!message) {
-        console.warn("[!] Received null message");
-        return;
-    }
-
-    try {
-        const content = JSON.parse(message.content.toString());
-        validateMessage(content);
-        console.log("[x] Received message:", content);
-    } catch (error) {
-        console.error("[!] Error processing message:", error.message);
-    }
-};
-
-/**
- * Sets up and starts the message receiver
+ * Sets up and starts the message receiver using Rascal
  * @returns {Promise<void>}
  */
-
 const startReceiver = async () => {
-    let connection;
-    let channel;
+    let broker;
 
     try {
-        // Connect to RabbitMQ
-        connection = await amqp.connect(RABBITMQ_CONFIG.url);
-        channel = await connection.createChannel();
-
-        // Setup queue
-        await channel.assertQueue(RABBITMQ_CONFIG.queue, RABBITMQ_CONFIG.options);
+        // Create and initialize broker
+        broker = await BrokerAsPromised.create(BROKER_CONFIG);
         
-        // Setup message consumer
-        await channel.consume(RABBITMQ_CONFIG.queue, processMessage, RABBITMQ_CONFIG.consumer);
+        // Handle broker errors
+        broker.on('error', (err, { vhost, connectionUrl }) => {
+            console.error('[!] Broker error:', err.message, { vhost, connectionUrl });
+        });
 
+        // Subscribe to messages
+        const subscription = await broker.subscribe('inventory_listener');
+        
         console.log("[*] Waiting for messages. To exit press CTRL+C");
+
+        // Handle subscription events
+        subscription
+            .on('message', (message, content, ackOrNack) => {
+                try {
+                    // Validate and process message
+                    validateMessage(content);
+                    console.log("[✓] Received message:", content);
+                    ackOrNack();
+                } catch (error) {
+                    console.error("[!] Processing error:", error.message);
+                    // Nack without requeue on validation errors
+                    ackOrNack(error, { strategy: 'nack', requeue: false });
+                }
+            })
+            .on('error', (err) => {
+                console.error('[!] Subscription error:', err.message);
+            })
+            .on('invalid_content', (err, message, ackOrNack) => {
+                console.error('[!] Invalid message content:', err.message);
+                // Nack without requeue on invalid content
+                ackOrNack(err, { strategy: 'nack', requeue: false });
+            });
 
         // Handle graceful shutdown
         const cleanup = async () => {
             console.log("\n[*] Shutting down...");
-            if (channel) {
-                await channel.close();
-                console.log("[x] Channel closed");
+            try {
+                await broker.shutdown();
+                console.log("[✓] Broker shutdown complete");
+                process.exit(0);
+            } catch (error) {
+                console.error("[!] Error during shutdown:", error.message);
+                process.exit(1);
             }
-            if (connection) {
-                await connection.close();
-                console.log("[x] Connection closed");
-            }
-            process.exit(0);
         };
 
         process.once("SIGINT", cleanup);
         process.once("SIGTERM", cleanup);
 
     } catch (error) {
-        console.error("[!] Error:", error.message);
-        if (channel) await channel.close();
-        if (connection) await connection.close();
+        console.error("[!] Fatal error:", error.message);
+        if (broker) {
+            try {
+                await broker.shutdown();
+            } catch (shutdownError) {
+                console.error("[!] Shutdown error:", shutdownError.message);
+            }
+        }
         process.exit(1);
     }
 };
 
 // Start the receiver
-startReceiver().catch(error => {
-    console.error("[!] Fatal error:", error.message);
-    process.exit(1);
-});
+startReceiver();
