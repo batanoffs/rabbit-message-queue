@@ -1,14 +1,14 @@
-import amqp from "amqplib";
-
-import { RABBITMQ_CONFIG } from "./common/config.js";
-import { SAMPLE_MESSAGE } from "./common/message.js";
-
 /**
  * Validates the message structure
  * @param {Object} message - Message to validate
  * @returns {boolean} - True if valid, throws error if invalid
  * @throws {Error} If message structure is invalid
  */
+
+import pkg from 'rascal';
+const { BrokerAsPromised } = pkg;
+import { BROKER_CONFIG } from "./common/config.js";
+import { SAMPLE_MESSAGE } from "./common/message.js";
 
 const validateMessage = (message) => {
     if (!message || typeof message !== 'object') {
@@ -24,37 +24,49 @@ const validateMessage = (message) => {
 };
 
 /**
- * Sends a message to RabbitMQ queue
+ * Sends a message to RabbitMQ queue using Rascal
  * @param {Object} message - Message to send
  * @returns {Promise<void>}
  */
-
 const sendMessage = async (message) => {
-    let connection;
+    let broker;
     try {
         // Validate message before attempting to send
         validateMessage(message);
 
-        // Connect to RabbitMQ
-        connection = await amqp.connect(RABBITMQ_CONFIG.url);
-        const channel = await connection.createChannel();
+        // Create and initialize broker
+        broker = await BrokerAsPromised.create(BROKER_CONFIG);
+        
+        // Handle broker errors
+        broker.on('error', (err, { vhost, connectionUrl }) => {
+            console.error('[!] Broker error:', err.message, { vhost, connectionUrl });
+        });
 
-        // Assert queue and send message
-        await channel.assertQueue(RABBITMQ_CONFIG.queue, RABBITMQ_CONFIG.options);
-        channel.sendToQueue(RABBITMQ_CONFIG.queue, Buffer.from(JSON.stringify(message)));
+        // Publish message with confirmation
+        const publication = await broker.publish('inventory_check', message);
+        
+        // Handle publication events
+        publication
+            .on('success', () => {
+                console.log("[✓] Message sent successfully:", message);
+            })
+            .on('error', (err) => {
+                console.error("[!] Publication error:", err.message);
+            })
+            .on('return', (msg) => {
+                console.warn("[!] Message was returned:", msg.properties.messageId);
+            });
 
-        console.log("[x] Message sent successfully:", message);
-        await channel.close();
     } catch (error) {
-        console.error("[!] Error sending message:", error.message);
+        console.error("[!] Error in send operation:", error.message);
         throw error;
     } finally {
-        if (connection) {
+        if (broker) {
             try {
-                await connection.close();
-                console.log("[x] Connection closed");
+                await broker.shutdown();
+                console.log("[✓] Broker shutdown complete");
             } catch (error) {
-                console.error("[!] Error closing connection:", error.message);
+                console.error("[!] Error during broker shutdown:", error.message);
             }
         }
     }
