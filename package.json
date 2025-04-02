@@ -13,6 +13,7 @@
   "dependencies": {
     "amqplib": "^0.10.7",
     "express": "^5.1.0",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "rascal": "^20.1.1"
   }
 }
