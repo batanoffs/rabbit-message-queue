@@ -1,13 +1,15 @@
+// Import the Rascal package and the broker configuration
+import pkg from 'rascal';
+import { BROKER_CONFIG } from "./common/config.js";
+
+const { BrokerAsPromised } = pkg;
+
 /**
  * Validates the received message structure
  * @param {Object} message - Message to validate
  * @returns {boolean} - True if valid, throws error if invalid
  * @throws {Error} If message structure is invalid
  */
-
-import pkg from 'rascal';
-const { BrokerAsPromised } = pkg;
-import { BROKER_CONFIG } from "./common/config.js";
 
 const validateMessage = (message) => {
     if (!message || typeof message !== 'object') {
@@ -26,6 +28,7 @@ const validateMessage = (message) => {
  * Sets up and starts the message receiver using Rascal
  * @returns {Promise<void>}
  */
+
 const startReceiver = async () => {
     let broker;
 
@@ -83,14 +86,24 @@ const startReceiver = async () => {
         process.once("SIGTERM", cleanup);
 
     } catch (error) {
+
+        // Log error
         console.error("[!] Fatal error:", error.message);
+
+        // Attempt to shutdown broker if it was created
         if (broker) {
             try {
+
+                // Attempt to shutdown the broker
                 await broker.shutdown();
             } catch (shutdownError) {
+
+                // Log shutdown error
                 console.error("[!] Shutdown error:", shutdownError.message);
             }
         }
+
+        // Exit process with error code
         process.exit(1);
     }
 };
