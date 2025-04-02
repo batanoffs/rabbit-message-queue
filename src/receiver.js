@@ -1,16 +1,6 @@
 import amqp from "amqplib";
 
-/**
- * RabbitMQ Configuration
- * @constant {Object}
- */
-
-const RABBITMQ_CONFIG = {
-    url: "amqp://localhost",
-    queue: "product_inventory",
-    options: { durable: false },
-    consumer: { noAck: true }
-};
+import { RABBITMQ_CONFIG } from "./common/config.js";
 
 /**
  * Validates the received message structure
@@ -18,6 +8,7 @@ const RABBITMQ_CONFIG = {
  * @returns {boolean} - True if valid, throws error if invalid
  * @throws {Error} If message structure is invalid
  */
+
 const validateMessage = (message) => {
     if (!message || typeof message !== 'object') {
         throw new Error('Invalid message format: not an object');
@@ -35,6 +26,7 @@ const validateMessage = (message) => {
  * Processes a received message
  * @param {amqp.ConsumeMessage | null} message - The received message
  */
+
 const processMessage = (message) => {
     if (!message) {
         console.warn("[!] Received null message");
@@ -54,6 +46,7 @@ const processMessage = (message) => {
  * Sets up and starts the message receiver
  * @returns {Promise<void>}
  */
+
 const startReceiver = async () => {
     let connection;
     let channel;
@@ -67,11 +60,7 @@ const startReceiver = async () => {
         await channel.assertQueue(RABBITMQ_CONFIG.queue, RABBITMQ_CONFIG.options);
         
         // Setup message consumer
-        await channel.consume(
-            RABBITMQ_CONFIG.queue,
-            processMessage,
-            RABBITMQ_CONFIG.consumer
-        );
+        await channel.consume(RABBITMQ_CONFIG.queue, processMessage, RABBITMQ_CONFIG.consumer);
 
         console.log("[*] Waiting for messages. To exit press CTRL+C");
 

@@ -1,23 +1,7 @@
 import amqp from "amqplib";
 
-/**
- * RabbitMQ Configuration
- * @constant {Object}
- */
-const RABBITMQ_CONFIG = {
-    url: "amqp://localhost",
-    queue: "product_inventory",
-    options: { durable: false }
-};
-
-/**
- * Sample message for inventory check
- * @constant {Object}
- */
-const SAMPLE_MESSAGE = {
-    item_id: "macbook",
-    text: "This is a sample message to send receiver to check the ordered Item Availability",
-};
+import { RABBITMQ_CONFIG } from "./common/config.js";
+import { SAMPLE_MESSAGE } from "./common/sampleMessage.js";
 
 /**
  * Validates the message structure
@@ -25,6 +9,7 @@ const SAMPLE_MESSAGE = {
  * @returns {boolean} - True if valid, throws error if invalid
  * @throws {Error} If message structure is invalid
  */
+
 const validateMessage = (message) => {
     if (!message || typeof message !== 'object') {
         throw new Error('Message must be an object');
@@ -43,6 +28,7 @@ const validateMessage = (message) => {
  * @param {Object} message - Message to send
  * @returns {Promise<void>}
  */
+
 const sendMessage = async (message) => {
     let connection;
     try {
