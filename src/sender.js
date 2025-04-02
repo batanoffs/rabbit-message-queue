@@ -1,14 +1,17 @@
+// Imports
+import pkg from 'rascal';
+import { BROKER_CONFIG } from "./common/config.js";
+import { SAMPLE_MESSAGE } from "./common/message.js";
+
+
+const { BrokerAsPromised } = pkg;
+
 /**
  * Validates the message structure
  * @param {Object} message - Message to validate
  * @returns {boolean} - True if valid, throws error if invalid
  * @throws {Error} If message structure is invalid
  */
-
-import pkg from 'rascal';
-const { BrokerAsPromised } = pkg;
-import { BROKER_CONFIG } from "./common/config.js";
-import { SAMPLE_MESSAGE } from "./common/message.js";
 
 const validateMessage = (message) => {
     if (!message || typeof message !== 'object') {
@@ -28,9 +31,15 @@ const validateMessage = (message) => {
  * @param {Object} message - Message to send
  * @returns {Promise<void>}
  */
+
 const sendMessage = async (message) => {
+
+    // Initialize broker variable
     let broker;
+
+    // Try to send the message
     try {
+
         // Validate message before attempting to send
         validateMessage(message);
 
@@ -61,8 +70,12 @@ const sendMessage = async (message) => {
         console.error("[!] Error in send operation:", error.message);
         throw error;
     } finally {
+
+        // Ensure broker is shut down properly
         if (broker) {
             try {
+
+                // Attempt to shutdown the broker
                 await broker.shutdown();
                 console.log("[✓] Broker shutdown complete");
             } catch (error) {
@@ -74,9 +87,15 @@ const sendMessage = async (message) => {
 
 // Execute message sending
 (async () => {
+
+    // Try to send a message
     try {
+
+        // Send a sample message
         await sendMessage(SAMPLE_MESSAGE);
     } catch (error) {
+
+        // Exit with failure
         process.exit(1);
     }
 })();
