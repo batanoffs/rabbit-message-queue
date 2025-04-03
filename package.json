@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "amqplib": "^0.10.7",
+    "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "nodemon": "^3.1.9",
     "rascal": "^20.1.1"
